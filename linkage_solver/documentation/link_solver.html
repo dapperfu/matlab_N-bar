@@ -1,0 +1,577 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>link_solver</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2010-06-01">
+      <meta name="m-file" content="link_solver"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content">
+         <h2>Contents</h2>
+         <div>
+            <ul>
+               <li><a href="#2">Determine and assign unknown variables.</a></li>
+               <li><a href="#3">Determine and assign the given link angles and lengths.</a></li>
+               <li><a href="#4">Create the function to calculate the delta &amp; setup loop variables</a></li>
+               <li><a href="#6">Process data.</a></li>
+               <li><a href="#7">Post processing cleanup.</a></li>
+               <li><a href="#8">Output Processing.</a></li>
+               <li><a href="#9">Helper Functions.</a></li>
+            </ul>
+         </div><pre class="codeinput"><span class="keyword">function</span> varargout=link_solver(varargin)
+<span class="comment">% [unknown1,unknown2,all_linkages]=link_solver(</span>
+<span class="comment">%           link1,angle1,link2,angle2,link3,angle3,</span>
+<span class="comment">%           ...,linkN,angleN,[guess1,guess2])</span>
+<span class="comment">% Generic linkage solver. Most common use is four bar liWill also solve four bar linages if you</span>
+<span class="comment">% set the length &amp; angle of one of the linkages to 0.</span>
+<span class="comment">%</span>
+<span class="comment">% Given a guess, the solver will attempt to start from the guessed</span>
+<span class="comment">% position. There are linked systems where there may be more than one valid</span>
+<span class="comment">% solution.</span>
+<span class="comment">%</span>
+<span class="comment">% Returns:</span>
+<span class="comment">%   unknown1: the first unknown given</span>
+<span class="comment">%   unknown2: the second unknown given</span>
+<span class="comment">%   all_linkages: a struct with all linkages and angles corrected to 0-360</span>
+<span class="comment">%       and positive linkage length.</span>
+<span class="comment">%</span>
+<span class="comment">% To solve for any two unknowns, input all other given parameters. Unknown</span>
+<span class="comment">% information should be inputted as either an empty string ('') or</span>
+<span class="comment">% empty array ([]). All solutions will be returned with angles between</span>
+<span class="comment">% 0-360 and linkage lengths positive.</span>
+<span class="comment">%</span>
+<span class="comment">% To keep signs and angles correct, select one point and work around clockwise or counter clockwise</span>
+<span class="comment">% using the length as a positive number and the angle as the absolute angle</span>
+<span class="comment">% from the horizon. If you wish to input the angle of the linkage from</span>
+<span class="comment">% 'end' to 'beginning' then you should give the length of the linkage as</span>
+<span class="comment">% negative.</span>
+<span class="comment">%</span>
+<span class="comment">% Example:</span>
+<span class="comment">% Consider this simple five bar linkage with shown unknowns.</span>
+<span class="comment">% %</span>
+<span class="comment">% %          O</span>
+<span class="comment">% %         / \ ?*</span>
+<span class="comment">% %        /   \</span>
+<span class="comment">% %   (5) /     \ (?)</span>
+<span class="comment">% %      /       \</span>
+<span class="comment">% %     / 53.87*  \</span>
+<span class="comment">% %    O           O</span>
+<span class="comment">% %    |           |</span>
+<span class="comment">% %    |           |</span>
+<span class="comment">% %(6) |           | (6)</span>
+<span class="comment">% %    |           |</span>
+<span class="comment">% %    | 90*   90* |</span>
+<span class="comment">% %    O - - - - - O</span>
+<span class="comment">% %         (6)</span>
+<span class="comment">%</span>
+<span class="comment">% %Working clockwise:</span>
+<span class="comment">% [unknown1,unknown2]=link_solver(6,90,5,53.1301,[],[],6,270,6,180)</span>
+<span class="comment">%</span>
+<span class="comment">% %  Linkage 1 is of length 5 and is at 90 degrees.</span>
+<span class="comment">% %  Linkage 2 is unknown.</span>
+<span class="comment">% %  Linkage 3 is of length 5 and at 270 degrees.</span>
+<span class="comment">% %  Linkage 4 is of length 5 and at 180 degrees.</span>
+<span class="comment">% % Alternative ways to call link_solver that will get the correct solution:</span>
+<span class="comment">% [length3, angle3]=link_solver(6,90,5,53.1301,[],[],6,270,-6,0,[5,-50])</span>
+<span class="comment">% links=link_solver(6,90,5,53.1301,'',[],6,-90,6,180)</span>
+<span class="comment">% [link1, link2, link3, link4, link5]=link_solver(6,90,-5,233.1301,{},[],6,270,6,180)</span>
+<span class="comment">%</span>
+<span class="comment">% % Inputs can also be given in vector format to simultaneously solve for</span>
+<span class="comment">% % multiple vector input.</span>
+<span class="comment">% links=link_solver(6,[0 45 90],5,'',5,'',6,270)%</span>
+<span class="comment">%</span>
+<span class="comment">% % Supplying a guess for the unknown variables is not manditory, however it</span>
+<span class="comment">% % is suggested as certain input configurations the solver will correctly</span>
+<span class="comment">% % solve for the unknowns, although the linkage may not look as expected.</span>
+<span class="comment">% % No guesses</span>
+<span class="comment">% link=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link);</span>
+<span class="comment">% link=link_solver(1,-15,5,[],4,[],4,180),figure(2);draw_bar(link);</span>
+<span class="comment">% % Guesses</span>
+<span class="comment">% link=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link)</span>
+<span class="comment">% link=link_solver(1,-15,5,[],4,[],4,180,[link.angle_2 link.angle_3]),figure(2);draw_bar(link)</span>
+<span class="comment">%</span>
+<span class="comment">% % Guesses for multiple solutions to the same linkage measurements</span>
+<span class="comment">% l=link_solver(1,-15,5,[],4,[],4,180,[45,-90;-45,90]);draw_bar(l)</span>
+
+<span class="comment">% Author: Jedediah Frey</span>
+<span class="comment">% Created: May 2010</span>
+<span class="comment">% Copyright 2010</span>
+<span class="comment">% Change to enabled to show the results after each loop.</span>
+verbose=false;
+warning(<span class="string">'off'</span>,<span class="string">'MATLAB:DELETE:FileNotFound'</span>); <span class="comment">% Disable warning from tryin to delete temp file name if it doesn't exist.</span>
+</pre><h2>Determine and assign unknown variables.<a name="2"></a></h2><pre class="codeinput">unknown_idx=find(cellfun(<span class="string">'isempty'</span>,varargin));
+<span class="keyword">if</span> length(unknown_idx)&lt;2
+    error(<span class="string">'Over constrained system. At least two inputs should be empty.'</span>);
+<span class="keyword">elseif</span> length(unknown_idx)&gt;2
+    error(<span class="string">'Under constrained system. Only two inputs should be empty.'</span>);
+<span class="keyword">end</span>
+<span class="comment">% Assign the guessed variables</span>
+<span class="keyword">for</span> i=1:2
+    <span class="keyword">if</span> mod(unknown_idx(i),2)
+        unknown{i}=sprintf(<span class="string">'length_%d'</span>,floor((unknown_idx(i)+1)/2));
+    <span class="keyword">else</span>
+        unknown{i}=sprintf(<span class="string">'angle_%d'</span>,floor((unknown_idx(i)+1)/2));
+    <span class="keyword">end</span>
+    <span class="keyword">if</span> mod(nargin,2)
+        varargin{unknown_idx(i)}=varargin{end}(:,i)';
+    <span class="keyword">else</span>
+        <span class="comment">% Nothing guessed, guess a a positive, non zero, non identical</span>
+        <span class="comment">% number</span>
+        varargin{unknown_idx(i)}=i;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</pre><h2>Determine and assign the given link angles and lengths.<a name="3"></a></h2>
+         <p>Create a structure of the bar lengths and input angles</p><pre class="codeinput">link_count=floor(nargin/2);
+error(nargoutchk(0, link_count, nargout, <span class="string">'struct'</span>));
+<span class="keyword">for</span> i=1:link_count;
+    link=sprintf(<span class="string">'length_%d'</span>,i);
+    angle=sprintf(<span class="string">'angle_%d'</span>,i);
+    links.(link)=varargin{i*2-1};
+    links.(angle)=varargin{i*2}.*pi/180;
+<span class="keyword">end</span>
+</pre><h2>Create the function to calculate the delta &amp; setup loop variables<a name="4"></a></h2>
+         <p>Create the static delta function for the given unknown variables. Cuts down on symbolic library time.</p><pre class="codeinput">m_file=delta_function_writer(unknown{1},unknown{2},link_count);
+<span class="comment">% Print header if verbrosity is turned on.</span>
+<span class="keyword">if</span> verbose
+    fprintf(<span class="string">'%10s%10s%10s%10s%10s\n'</span>,<span class="string">'Loop'</span>,unknown{1},unknown{2},<span class="string">'Delta 1'</span>,<span class="string">'Delta 2'</span>);
+<span class="keyword">end</span>
+</pre><p>Once the deltas are smaller than the stop criterion, the function exits. How accurate should the model be.</p><pre class="codeinput">stop_criterion=1E-10;
+delta_u1=inf;delta_u2=inf; <span class="comment">% Set initial stop criterion large.</span>
+i=1;
+</pre><h2>Process data.<a name="6"></a></h2>
+         <p>While the change is larger than the stop critera (both).</p><pre class="codeinput"><span class="keyword">while</span>(stop_criterion&lt;max(abs((delta_u1))) &amp;&amp; stop_criterion&lt;max(abs((delta_u2))))
+    <span class="keyword">if</span> (mod(i,10000)==0)
+        error(<span class="string">'%d loops executed with no solution, canceleing.'</span>,i);
+    <span class="keyword">end</span>
+    <span class="comment">% Calculate the changes to the guesses.</span>
+    [delta_u1,delta_u2]=feval(m_file,links);
+    <span class="keyword">if</span> any(isinf([delta_u1,delta_u2])|isnan([delta_u1,delta_u2]))
+        error(<span class="string">'Inf or NaN returned as a delta. Current solution could be unsolveable an indeterminate system.'</span>);
+    <span class="keyword">end</span>
+    <span class="comment">% If verbose, print current loop.</span>
+    <span class="keyword">if</span> verbose
+        <span class="comment">% If the field is an angle, convert it to degrees.</span>
+        <span class="keyword">for</span> j=1:2
+            <span class="keyword">if</span> strcmp(unknown{j}(1:5),<span class="string">'angle'</span>)
+                tmp{j}=wrapTo360(links.(unknown{j}).*180/pi);
+            <span class="keyword">else</span>
+                tmp{j}=links.(unknown{j});
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+        <span class="comment">% Print the current loop calculations.</span>
+        fprintf(<span class="string">'%10d%10.3f%10.3f%10.3f%10.3f\n'</span>,i,tmp{1},tmp{2},delta_u1,delta_u2);
+    <span class="keyword">end</span>
+    <span class="comment">% Add the old guess and the delta to form the new guess and repeat.</span>
+    links.(unknown{1})=links.(unknown{1})+delta_u1;
+    links.(unknown{2})=links.(unknown{2})+delta_u2;
+    i=i+1;
+<span class="keyword">end</span>
+</pre><h2>Post processing cleanup.<a name="7"></a></h2><pre class="codeinput">solved_links=length(links.(unknown{1}));
+f=fieldnames(links);
+<span class="comment">% If more than one solution was solved for.</span>
+<span class="keyword">if</span> solved_links&gt;1
+    <span class="comment">% For each of the solutions</span>
+    <span class="keyword">for</span> l=1:solved_links
+        <span class="keyword">for</span> i=1:numel(f);
+            <span class="keyword">if</span> length(links.(f{i}))==1
+                links.(f{i})=repmat(links.(f{i}),size(links.(unknown{1})));
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="comment">% Orient the bars so that all lengths are positive and all angles are</span>
+<span class="comment">% 0-360.</span>
+links=bar_ortienter(links,link_count);
+<span class="comment">% Convert radians back to degrees.</span>
+<span class="keyword">for</span> i=1:link_count
+    a=sprintf(<span class="string">'angle_%d'</span>,i);
+    links.(a)=wrapTo360(links.(a).*180./pi);
+<span class="keyword">end</span>
+</pre><h2>Output Processing.<a name="8"></a></h2>
+         <p>Assign the variables to return.</p><pre class="codeinput"><span class="keyword">switch</span> nargout
+    <span class="keyword">case</span> {0,1}
+        <span class="comment">% If there was more than one unknown position solved for (matrix</span>
+        <span class="comment">% input) then create an array of structures for each given input.</span>
+        <span class="keyword">if</span> solved_links&gt;1
+            links_temp=links;clear(<span class="string">'links'</span>);
+            <span class="comment">% For each of the solved linkage solutions</span>
+            <span class="keyword">for</span> l=1:solved_links
+                <span class="comment">% For each length/angle</span>
+                <span class="keyword">for</span> i=1:numel(f);
+                    links(l).(f{i})(1)=links_temp.(f{i})(l);
+                <span class="keyword">end</span>
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+        varargout{1}=links;
+    <span class="keyword">case</span> 2
+        varargout{1}=links.(unknown{1});
+        varargout{2}=links.(unknown{2});
+    <span class="keyword">case</span> link_count
+        <span class="comment">% Put into</span>
+        <span class="keyword">for</span> i=1:link_count
+            link=sprintf(<span class="string">'length_%d'</span>,i);
+            angle=sprintf(<span class="string">'angle_%d'</span>,i);
+            varargout{i}=[links.(link)',links.(angle)'];
+        <span class="keyword">end</span>
+    <span class="keyword">otherwise</span>
+        error(<span class="string">'Incorrect number of outputs'</span>);
+<span class="keyword">end</span>
+<span class="comment">% Delete the temporary function.</span>
+delete([m_file <span class="string">'.m'</span>]);
+<span class="keyword">end</span>
+</pre><h2>Helper Functions.<a name="9"></a></h2><pre class="codeinput"><span class="comment">% Orient the bars so that all lengths are positive and all angles are</span>
+<span class="comment">% 0-360.</span>
+<span class="keyword">function</span> links=bar_ortienter(links,link_count)
+<span class="comment">% Loop through link lengths</span>
+<span class="keyword">for</span> i=1:link_count
+    link=sprintf(<span class="string">'length_%d'</span>,i);
+    <span class="comment">% If any is less than 0</span>
+    <span class="keyword">if</span> (any(links.(link)&lt;0))
+        angle=sprintf(<span class="string">'angle_%d'</span>,i);
+        <span class="comment">% And rotate the angle by 180 degrees still (in radians)</span>
+        links.(angle)(links.(link)&lt;0)=links.(angle)(links.(link)&lt;0)+pi;
+        <span class="comment">% Orient bar with positive length.</span>
+        links.(link)=abs(links.(link));
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</pre><pre class="codeinput"><span class="keyword">end</span>
+
+<span class="keyword">function</span> lon = wrapTo360(lon)
+<span class="comment">%wrapTo360 Wrap angle in degrees to [0 360]</span>
+<span class="comment">%</span>
+<span class="comment">%   lonWrapped = wrapTo360(LON) wraps angles in LON, in degrees, to the</span>
+<span class="comment">%   interval [0 360] such that zero maps to zero and 360 maps to 360.</span>
+<span class="comment">%   (In general, positive multiples of 360 map to 360 and negative</span>
+<span class="comment">%   multiples of 360 map to zero.)</span>
+<span class="comment">%</span>
+<span class="comment">%   See also wrapTo180, wrapToPi, wrapTo2Pi.</span>
+
+
+positiveInput = (lon &gt; 0);
+lon = mod(lon, 360);
+lon((lon == 0) &amp; positiveInput) = 360;
+<span class="keyword">end</span>
+</pre><p class="footer">Copyright 2007-2008 The MathWorks, Inc.<br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+function varargout=link_solver(varargin)
+% [unknown1,unknown2,all_linkages]=link_solver(
+%           link1,angle1,link2,angle2,link3,angle3,
+%           ...,linkN,angleN,[guess1,guess2])
+% Generic linkage solver. Most common use is four bar liWill also solve four bar linages if you
+% set the length & angle of one of the linkages to 0. 
+%
+% Given a guess, the solver will attempt to start from the guessed
+% position. There are linked systems where there may be more than one valid
+% solution.
+%
+% Returns:
+%   unknown1: the first unknown given
+%   unknown2: the second unknown given
+%   all_linkages: a struct with all linkages and angles corrected to 0-360
+%       and positive linkage length.
+%
+% To solve for any two unknowns, input all other given parameters. Unknown 
+% information should be inputted as either an empty string ('') or
+% empty array ([]). All solutions will be returned with angles between 
+% 0-360 and linkage lengths positive.
+%
+% To keep signs and angles correct, select one point and work around clockwise or counter clockwise
+% using the length as a positive number and the angle as the absolute angle
+% from the horizon. If you wish to input the angle of the linkage from
+% 'end' to 'beginning' then you should give the length of the linkage as
+% negative.
+%
+% Example:
+% Consider this simple five bar linkage with shown unknowns.  
+% %     
+% %          O
+% %         / \ ?*
+% %        /   \
+% %   (5) /     \ (?)
+% %      /       \
+% %     / 53.87*  \
+% %    O           O
+% %    |           |
+% %    |           |
+% %(6) |           | (6)
+% %    |           |
+% %    | 90*   90* |
+% %    O - - - - - O
+% %         (6)
+%
+% %Working clockwise:
+% [unknown1,unknown2]=link_solver(6,90,5,53.1301,[],[],6,270,6,180)
+%
+% %  Linkage 1 is of length 5 and is at 90 degrees.
+% %  Linkage 2 is unknown.
+% %  Linkage 3 is of length 5 and at 270 degrees.
+% %  Linkage 4 is of length 5 and at 180 degrees.
+% % Alternative ways to call link_solver that will get the correct solution:
+% [length3, angle3]=link_solver(6,90,5,53.1301,[],[],6,270,-6,0,[5,-50])
+% links=link_solver(6,90,5,53.1301,'',[],6,-90,6,180)
+% [link1, link2, link3, link4, link5]=link_solver(6,90,-5,233.1301,{},[],6,270,6,180)
+%
+% % Inputs can also be given in vector format to simultaneously solve for
+% % multiple vector input.
+% links=link_solver(6,[0 45 90],5,'',5,'',6,270)%
+%
+% % Supplying a guess for the unknown variables is not manditory, however it
+% % is suggested as certain input configurations the solver will correctly
+% % solve for the unknowns, although the linkage may not look as expected.
+% % No guesses
+% link=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link);
+% link=link_solver(1,-15,5,[],4,[],4,180),figure(2);draw_bar(link);
+% % Guesses
+% link=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link)
+% link=link_solver(1,-15,5,[],4,[],4,180,[link.angle_2 link.angle_3]),figure(2);draw_bar(link)
+%
+% % Guesses for multiple solutions to the same linkage measurements
+% l=link_solver(1,-15,5,[],4,[],4,180,[45,-90;-45,90]);draw_bar(l)
+
+% Author: Jedediah Frey
+% Created: May 2010
+% Copyright 2010
+% Change to enabled to show the results after each loop.
+verbose=false;
+warning('off','MATLAB:DELETE:FileNotFound'); % Disable warning from tryin to delete temp file name if it doesn't exist.
+
+%% Determine and assign unknown variables.
+unknown_idx=find(cellfun('isempty',varargin));
+if length(unknown_idx)<2
+    error('Over constrained system. At least two inputs should be empty.');
+elseif length(unknown_idx)>2
+    error('Under constrained system. Only two inputs should be empty.');
+end
+% Assign the guessed variables
+for i=1:2
+    if mod(unknown_idx(i),2)
+        unknown{i}=sprintf('length_%d',floor((unknown_idx(i)+1)/2));
+    else
+        unknown{i}=sprintf('angle_%d',floor((unknown_idx(i)+1)/2));
+    end
+    if mod(nargin,2)
+        varargin{unknown_idx(i)}=varargin{end}(:,i)';
+    else
+        % Nothing guessed, guess a a positive, non zero, non identical
+        % number
+        varargin{unknown_idx(i)}=i;
+    end
+end
+%% Determine and assign the given link angles and lengths.
+% Create a structure of the bar lengths and input angles
+link_count=floor(nargin/2);
+error(nargoutchk(0, link_count, nargout, 'struct'));
+for i=1:link_count;
+    link=sprintf('length_%d',i);
+    angle=sprintf('angle_%d',i);
+    links.(link)=varargin{i*2-1};
+    links.(angle)=varargin{i*2}.*pi/180;
+end
+%% Create the function to calculate the delta & setup loop variables
+% Create the static delta function for the given unknown variables. 
+% Cuts down on symbolic library time.
+m_file=delta_function_writer(unknown{1},unknown{2},link_count);
+% Print header if verbrosity is turned on.
+if verbose
+    fprintf('%10s%10s%10s%10s%10s\n','Loop',unknown{1},unknown{2},'Delta 1','Delta 2');
+end
+%%
+% Once the deltas are smaller than the stop criterion, the function exits.
+% How accurate should the model be.
+stop_criterion=1E-10;
+delta_u1=inf;delta_u2=inf; % Set initial stop criterion large.
+i=1;
+%% Process data.
+% While the change is larger than the stop critera (both).
+while(stop_criterion<max(abs((delta_u1))) && stop_criterion<max(abs((delta_u2))))
+    if (mod(i,10000)==0)
+        error('%d loops executed with no solution, canceleing.',i);
+    end
+    % Calculate the changes to the guesses.
+    [delta_u1,delta_u2]=feval(m_file,links);
+    if any(isinf([delta_u1,delta_u2])|isnan([delta_u1,delta_u2]))
+        error('Inf or NaN returned as a delta. Current solution could be unsolveable an indeterminate system.');
+    end
+    % If verbose, print current loop.
+    if verbose
+        % If the field is an angle, convert it to degrees.
+        for j=1:2
+            if strcmp(unknown{j}(1:5),'angle')
+                tmp{j}=wrapTo360(links.(unknown{j}).*180/pi);
+            else
+                tmp{j}=links.(unknown{j});
+            end
+        end
+        % Print the current loop calculations.
+        fprintf('%10d%10.3f%10.3f%10.3f%10.3f\n',i,tmp{1},tmp{2},delta_u1,delta_u2);
+    end
+    % Add the old guess and the delta to form the new guess and repeat.
+    links.(unknown{1})=links.(unknown{1})+delta_u1;
+    links.(unknown{2})=links.(unknown{2})+delta_u2;
+    i=i+1;
+end
+%% Post processing cleanup.
+solved_links=length(links.(unknown{1}));
+f=fieldnames(links);
+% If more than one solution was solved for.
+if solved_links>1
+    % For each of the solutions
+    for l=1:solved_links
+        for i=1:numel(f);
+            if length(links.(f{i}))==1
+                links.(f{i})=repmat(links.(f{i}),size(links.(unknown{1})));
+            end
+        end
+    end
+end
+% Orient the bars so that all lengths are positive and all angles are
+% 0-360.
+links=bar_ortienter(links,link_count);
+% Convert radians back to degrees.
+for i=1:link_count
+    a=sprintf('angle_%d',i);
+    links.(a)=wrapTo360(links.(a).*180./pi);
+end
+
+%% Output Processing.
+% Assign the variables to return.
+switch nargout
+    case {0,1}
+        % If there was more than one unknown position solved for (matrix
+        % input) then create an array of structures for each given input.
+        if solved_links>1
+            links_temp=links;clear('links');
+            % For each of the solved linkage solutions
+            for l=1:solved_links
+                % For each length/angle
+                for i=1:numel(f);
+                    links(l).(f{i})(1)=links_temp.(f{i})(l);
+                end
+            end
+        end
+        varargout{1}=links;
+    case 2
+        varargout{1}=links.(unknown{1});
+        varargout{2}=links.(unknown{2});
+    case link_count
+        % Put into 
+        for i=1:link_count
+            link=sprintf('length_%d',i);
+            angle=sprintf('angle_%d',i);
+            varargout{i}=[links.(link)',links.(angle)'];
+        end
+    otherwise
+        error('Incorrect number of outputs');
+end
+% Delete the temporary function.
+delete([m_file '.m']);
+end
+
+%% Helper Functions.
+
+% Orient the bars so that all lengths are positive and all angles are
+% 0-360.
+function links=bar_ortienter(links,link_count)
+% Loop through link lengths
+for i=1:link_count
+    link=sprintf('length_%d',i);
+    % If any is less than 0
+    if (any(links.(link)<0))
+        angle=sprintf('angle_%d',i);
+        % And rotate the angle by 180 degrees still (in radians)
+        links.(angle)(links.(link)<0)=links.(angle)(links.(link)<0)+pi;
+        % Orient bar with positive length.
+        links.(link)=abs(links.(link));
+    end
+end
+%%
+end
+
+function lon = wrapTo360(lon)
+%wrapTo360 Wrap angle in degrees to [0 360]
+%
+%   lonWrapped = wrapTo360(LON) wraps angles in LON, in degrees, to the
+%   interval [0 360] such that zero maps to zero and 360 maps to 360.
+%   (In general, positive multiples of 360 map to 360 and negative
+%   multiples of 360 map to zero.)
+%
+%   See also wrapTo180, wrapToPi, wrapTo2Pi.
+
+% Copyright 2007-2008 The MathWorks, Inc.
+% $Revision: 1.1.6.1 $  $Date: 2008/12/22 23:50:54 $
+
+positiveInput = (lon > 0);
+lon = mod(lon, 360);
+lon((lon == 0) & positiveInput) = 360;
+end
+##### SOURCE END #####
+-->
+   </body>
+</html>

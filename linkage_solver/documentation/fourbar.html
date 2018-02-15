@@ -1,0 +1,177 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>fourbar</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2010-06-01">
+      <meta name="m-file" content="fourbar"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content"><pre class="codeinput"><span class="keyword">function</span> varargout=fourbar(varargin)
+<span class="comment">% [unknown1,unknown2,all_linkages]=fourbar(link1,angle1,link2,angle2,link3,angle3,link4, angle4)</span>
+<span class="comment">% Simple method for calling fourbar, sets the #5 linkage length and angle</span>
+<span class="comment">% to 0.</span>
+<span class="comment">%</span>
+<span class="comment">% Example:</span>
+<span class="comment">% Consider this square with 'unknown' length and angle for the top linkage.</span>
+<span class="comment">% %         (?)</span>
+<span class="comment">% %    O - - - - - O</span>
+<span class="comment">% %    | ?     90* |</span>
+<span class="comment">% %    |           |</span>
+<span class="comment">% %(5) |           | (5)</span>
+<span class="comment">% %    |           |</span>
+<span class="comment">% %    | 90*   90* |</span>
+<span class="comment">% %    O - - - - - O</span>
+<span class="comment">% %         (5)</span>
+<span class="comment">%</span>
+<span class="comment">% %Working clockwise:</span>
+<span class="comment">% [link3, angle3]=fourbar(5,90,[],[],5,270,5,180)</span>
+<span class="comment">% %  Linkage 1 is of length 5 and is at 90 degrees.</span>
+<span class="comment">% %  Linkage 2 is unknown.</span>
+<span class="comment">% %  Linkage 3 is of length 5 and at 270 degrees.</span>
+<span class="comment">% %  Linkage 4 is of length 5 and at 180 degrees.</span>
+<span class="comment">%</span>
+<span class="comment">% % Alternative ways to call fourbar that will get the correct solution:</span>
+<span class="comment">% [link3, angle3]=fourbar(5,90,[],[],5,270,5,180)</span>
+<span class="comment">% [link1, link2, link3, link4]=fourbar(-5,270,[],[],5,270,5,180)</span>
+<span class="comment">% links=fourbar(-5,270,[],[],5,270,5,180)</span>
+<span class="comment">%</span>
+<span class="comment">% See also link_solver, draw_bar</span>
+
+<span class="comment">% Author: Jedediah Frey</span>
+<span class="comment">% Created: May 2010</span>
+<span class="comment">% Copyright 2010</span>
+error(nargchk(8, 9, nargin, <span class="string">'struct'</span>))
+error(nargchk(0, 4, nargout, <span class="string">'struct'</span>))
+<span class="keyword">switch</span> nargout
+    <span class="keyword">case</span> {0,1}
+        varargout{1}=link_solver(varargin{:});
+    <span class="keyword">case</span> 2
+        [unknown1,unknown2]=link_solver(varargin{:});
+        varargout{1}=unknown1;
+        varargout{2}=unknown2;
+    <span class="keyword">case</span> 4
+        [ varargout{1}, varargout{2}, varargout{3}, varargout{4}]=link_solver(varargin{:});
+    <span class="keyword">otherwise</span>
+        error(<span class="string">'Incorrect number of outputs'</span>);
+<span class="keyword">end</span>
+</pre><p class="footer"><br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+function varargout=fourbar(varargin)
+% [unknown1,unknown2,all_linkages]=fourbar(link1,angle1,link2,angle2,link3,angle3,link4, angle4)
+% Simple method for calling fourbar, sets the #5 linkage length and angle
+% to 0.
+%
+% Example:
+% Consider this square with 'unknown' length and angle for the top linkage.
+% %         (?)
+% %    O - - - - - O
+% %    | ?     90* |
+% %    |           |
+% %(5) |           | (5)
+% %    |           |
+% %    | 90*   90* |
+% %    O - - - - - O
+% %         (5)
+%
+% %Working clockwise:
+% [link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+% %  Linkage 1 is of length 5 and is at 90 degrees.
+% %  Linkage 2 is unknown.
+% %  Linkage 3 is of length 5 and at 270 degrees.
+% %  Linkage 4 is of length 5 and at 180 degrees.
+%
+% % Alternative ways to call fourbar that will get the correct solution:
+% [link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+% [link1, link2, link3, link4]=fourbar(-5,270,[],[],5,270,5,180)
+% links=fourbar(-5,270,[],[],5,270,5,180)
+%
+% See also link_solver, draw_bar
+
+% Author: Jedediah Frey
+% Created: May 2010
+% Copyright 2010
+error(nargchk(8, 9, nargin, 'struct'))
+error(nargchk(0, 4, nargout, 'struct'))
+switch nargout
+    case {0,1}
+        varargout{1}=link_solver(varargin{:});
+    case 2
+        [unknown1,unknown2]=link_solver(varargin{:});
+        varargout{1}=unknown1;
+        varargout{2}=unknown2;
+    case 4
+        [ varargout{1}, varargout{2}, varargout{3}, varargout{4}]=link_solver(varargin{:});
+    otherwise
+        error('Incorrect number of outputs');
+end
+##### SOURCE END #####
+-->
+   </body>
+</html>

@@ -1,0 +1,446 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN">
+<html xmlns:mwsh="http://www.mathworks.com/namespace/mcode/v1/syntaxhighlight.dtd">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   
+      <!--
+This HTML is auto-generated from an M-file.
+To make changes, update the M-file and republish this document.
+      -->
+      <title>Linkage Solver Examples</title>
+      <meta name="generator" content="MATLAB 7.5">
+      <meta name="date" content="2010-06-01">
+      <meta name="m-file" content="examples"><style>
+
+body {
+  background-color: white;
+  margin:10px;
+}
+
+h1 {
+  color: #990000; 
+  font-size: x-large;
+}
+
+h2 {
+  color: #990000;
+  font-size: medium;
+}
+
+/* Make the text shrink to fit narrow windows, but not stretch too far in 
+wide windows. */ 
+p,h1,h2,div.content div {
+  max-width: 600px;
+  /* Hack for IE6 */
+  width: auto !important; width: 600px;
+}
+
+pre.codeinput {
+  background: #EEEEEE;
+  padding: 10px;
+}
+@media print {
+  pre.codeinput {word-wrap:break-word; width:100%;}
+} 
+
+span.keyword {color: #0000FF}
+span.comment {color: #228B22}
+span.string {color: #A020F0}
+span.untermstring {color: #B20000}
+span.syscmd {color: #B28C00}
+
+pre.codeoutput {
+  color: #666666;
+  padding: 10px;
+}
+
+pre.error {
+  color: red;
+}
+
+p.footer {
+  text-align: right;
+  font-size: xx-small;
+  font-weight: lighter;
+  font-style: italic;
+  color: gray;
+}
+
+  </style></head>
+   <body>
+      <div class="content">
+         <h1>Linkage Solver Examples</h1>
+         <introduction></introduction>
+         <h2>Contents</h2>
+         <div>
+            <ul>
+               <li><a href="#1">Five bar linkage</a></li>
+               <li><a href="#7">Four bar linkage</a></li>
+               <li><a href="#13">Four bar linkage - Multiple input</a></li>
+               <li><a href="#14">Guessing vs No Guesses - four bar linkage</a></li>
+               <li><a href="#18">Three bar linkages</a></li>
+            </ul>
+         </div>
+         <h2>Five bar linkage<a name="1"></a></h2><pre class="codeinput"><span class="comment">% Consider this simple five bar linkage with shown unknowns.</span>
+<span class="comment">%          O</span>
+<span class="comment">%         / \ ?*</span>
+<span class="comment">%        /   \</span>
+<span class="comment">%   (5) /     \ (?)</span>
+<span class="comment">%      /       \</span>
+<span class="comment">%     / 53.87*  \</span>
+<span class="comment">%    O           O</span>
+<span class="comment">%    |           |</span>
+<span class="comment">%    |           |</span>
+<span class="comment">%(6) |           | (6)</span>
+<span class="comment">%    |           |</span>
+<span class="comment">%    | 90*   90* |</span>
+<span class="comment">%    O - - - - - O</span>
+<span class="comment">%         (6)</span>
+
+<span class="comment">%Working clockwise:</span>
+</pre><pre class="codeinput">[unknown1,unknown2]=link_solver(6,90,5,53.1301,[],[],6,270,6,180)
+
+<span class="comment">%  Linkage 1 is of length 5 and is at 90 degrees.</span>
+<span class="comment">%  Linkage 2 is unknown.</span>
+<span class="comment">%  Linkage 3 is of length 5 and at 270 degrees.</span>
+<span class="comment">%  Linkage 4 is of length 5 and at 180 degrees.</span>
+<span class="comment">% Alternative ways to call link_solver that will get the correct solution:</span>
+</pre><pre class="codeoutput">
+unknown1 =
+
+    5.0000
+
+
+unknown2 =
+
+  306.8699
+
+</pre><pre class="codeinput">[length3, angle3]=link_solver(6,90,5,53.1301,[],[],6,270,-6,0,[5,-50])
+</pre><pre class="codeoutput">
+length3 =
+
+    5.0000
+
+
+angle3 =
+
+  306.8699
+
+</pre><pre class="codeinput">links=link_solver(6,90,5,53.1301,<span class="string">''</span>,[],6,-90,6,180)
+</pre><pre class="codeoutput">
+links = 
+
+    length_1: 6
+     angle_1: 90
+    length_2: 5
+     angle_2: 53.1301
+    length_3: 5.0000
+     angle_3: 306.8699
+    length_4: 6
+     angle_4: 270
+    length_5: 6
+     angle_5: 180
+
+</pre><pre class="codeinput">[link1, link2, link3, link4, link5]=link_solver(6,90,-5,233.1301,{},[],6,270,6,180)
+</pre><pre class="codeoutput">
+link1 =
+
+     6    90
+
+
+link2 =
+
+    5.0000   53.1301
+
+
+link3 =
+
+    5.0000  306.8699
+
+
+link4 =
+
+     6   270
+
+
+link5 =
+
+     6   180
+
+</pre><p>Five bar -  Plotting Example</p><pre class="codeinput">[links]=link_solver(6,90,5,53.1301,[],[],6,270,6,180);
+draw_bar(links);
+</pre><img vspace="5" hspace="5" src="examples_01.png"> <h2>Four bar linkage<a name="7"></a></h2><pre class="codeinput"><span class="comment">%         (?)</span>
+<span class="comment">%    O - - - - - O</span>
+<span class="comment">%    | ?     90* |</span>
+<span class="comment">%    |           |</span>
+<span class="comment">%(5) |           | (5)</span>
+<span class="comment">%    |           |</span>
+<span class="comment">%    | 90*   90* |</span>
+<span class="comment">%    O - - - - - O</span>
+<span class="comment">%         (5)</span>
+<span class="comment">%  Linkage 1 is of length 5 and is at 90 degrees.</span>
+<span class="comment">%  Linkage 2 is unknown.</span>
+<span class="comment">%  Linkage 3 is of length 5 and at 270 degrees.</span>
+<span class="comment">%  Linkage 4 is of length 5 and at 180 degrees.</span>
+</pre><pre class="codeinput">[link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+</pre><pre class="codeoutput">
+link3 =
+
+    5.0000
+
+
+angle3 =
+
+   360
+
+</pre><pre class="codeinput">[link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+</pre><pre class="codeoutput">
+link3 =
+
+    5.0000
+
+
+angle3 =
+
+   360
+
+</pre><pre class="codeinput">[link1, link2, link3, link4]=fourbar(-5,270,[],[],5,270,5,180)
+</pre><pre class="codeoutput">
+link1 =
+
+     5    90
+
+
+link2 =
+
+     5   360
+
+
+link3 =
+
+     5   270
+
+
+link4 =
+
+     5   180
+
+</pre><pre class="codeinput">links=fourbar(-5,270,[],[],5,270,5,180)
+</pre><pre class="codeoutput">
+links = 
+
+    length_1: 5
+     angle_1: 90
+    length_2: 5
+     angle_2: 360
+    length_3: 5
+     angle_3: 270
+    length_4: 5
+     angle_4: 180
+
+</pre><p>Plotting example.</p><pre class="codeinput">link_solver(1,45,1,0,[],[],1,180)
+draw_bar(ans);
+</pre><pre class="codeoutput">
+ans = 
+
+    length_1: 1
+     angle_1: 45
+    length_2: 1
+     angle_2: 0
+    length_3: 1
+     angle_3: 225
+    length_4: 1
+     angle_4: 180
+
+</pre><img vspace="5" hspace="5" src="examples_02.png"> <h2>Four bar linkage - Multiple input<a name="13"></a></h2><pre class="codeinput">links=link_solver(1,[0 45 90],5,[],4,[],4,180,[45,270]);
+<span class="comment">% Legend on</span>
+draw_bar(links)
+<span class="comment">% Legend off</span>
+draw_bar(links,<span class="string">'off'</span>);
+</pre><img vspace="5" hspace="5" src="examples_03.png"> <img vspace="5" hspace="5" src="examples_04.png"> <img vspace="5" hspace="5" src="examples_05.png"> <h2>Guessing vs No Guesses - four bar linkage<a name="14"></a></h2>
+         <p>Supplying a guess for the unknown variables is not manditory, however it is suggested as certain input configurations the
+            solver will correctly solve for the unknowns, although the linkage may not look as expected.
+         </p>
+         <p>No guesses</p><pre class="codeinput">link1=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link);
+link2=link_solver(1,-15,5,[],4,[],4,180),figure(2);draw_bar(link);
+</pre><pre class="codeoutput">
+link1 = 
+
+    length_1: 1
+     angle_1: 350
+    length_2: 5
+     angle_2: 56.4252
+    length_3: 4
+     angle_3: 273.5843
+    length_4: 4
+     angle_4: 180
+
+
+link2 = 
+
+    length_1: 1
+     angle_1: 345
+    length_2: 5
+     angle_2: 311.7504
+    length_3: 4
+     angle_3: 94.2346
+    length_4: 4
+     angle_4: 180
+
+</pre><img vspace="5" hspace="5" src="examples_06.png"> <img vspace="5" hspace="5" src="examples_07.png"> <p>Guesses</p><pre class="codeinput">link1=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link)
+link2=link_solver(1,-15,5,[],4,[],4,180,[link.angle_2 link.angle_3]),figure(2);draw_bar(link)
+</pre><pre class="codeoutput">
+link1 = 
+
+    length_1: 1
+     angle_1: 350
+    length_2: 5
+     angle_2: 56.4252
+    length_3: 4
+     angle_3: 273.5843
+    length_4: 4
+     angle_4: 180
+
+
+link2 = 
+
+    length_1: 1
+     angle_1: 345
+    length_2: 5
+     angle_2: 58.0011
+    length_3: 4
+     angle_3: 275.5169
+    length_4: 4
+     angle_4: 180
+
+</pre><img vspace="5" hspace="5" src="examples_08.png"> <img vspace="5" hspace="5" src="examples_09.png"> <p>Guesses for multiple linkage orientations</p><pre class="codeinput">l=link_solver(1,-15,5,[],4,[],4,180,[45,-90;-45,90]);draw_bar(l)
+</pre><img vspace="5" hspace="5" src="examples_10.png"> <img vspace="5" hspace="5" src="examples_11.png"> <h2>Three bar linkages<a name="18"></a></h2>
+         <p>Equilateral Triangle</p><pre class="codeinput">[link3, angle3]=link_solver(1,60,[],[],1,180);
+draw_bar(1,60,link3,angle3,1,180);
+</pre><img vspace="5" hspace="5" src="examples_12.png"> <p>Isosceles Triangle</p><pre class="codeinput">[link1, link2, link3]=link_solver(1,rand(1,1)*60,1,[],[],180);
+draw_bar(link1(1),link1(2),link2(1),link2(2),link3(1),link3(2));
+</pre><img vspace="5" hspace="5" src="examples_13.png"> <p>Scalene Triangle</p><pre class="codeinput">[links]=link_solver(5,0,3,45,[],[]);
+draw_bar(links);
+</pre><img vspace="5" hspace="5" src="examples_14.png"> <p class="footer"><br>
+            Published with MATLAB&reg; 7.5<br></p>
+      </div>
+      <!--
+##### SOURCE BEGIN #####
+%% Linkage Solver Examples
+
+%% Five bar linkage
+
+% Consider this simple five bar linkage with shown unknowns.
+%          O
+%         / \ ?*
+%        /   \
+%   (5) /     \ (?)
+%      /       \
+%     / 53.87*  \
+%    O           O
+%    |           |
+%    |           |
+%(6) |           | (6)
+%    |           |
+%    | 90*   90* |
+%    O - - - - - O
+%         (6)
+
+%Working clockwise:
+%%
+[unknown1,unknown2]=link_solver(6,90,5,53.1301,[],[],6,270,6,180)
+
+%  Linkage 1 is of length 5 and is at 90 degrees.
+%  Linkage 2 is unknown.
+%  Linkage 3 is of length 5 and at 270 degrees.
+%  Linkage 4 is of length 5 and at 180 degrees.
+% Alternative ways to call link_solver that will get the correct solution:
+%%
+[length3, angle3]=link_solver(6,90,5,53.1301,[],[],6,270,-6,0,[5,-50])
+%%
+links=link_solver(6,90,5,53.1301,'',[],6,-90,6,180)
+%%
+[link1, link2, link3, link4, link5]=link_solver(6,90,-5,233.1301,{},[],6,270,6,180)
+%%
+% Five bar -  Plotting Example
+[links]=link_solver(6,90,5,53.1301,[],[],6,270,6,180);
+draw_bar(links);
+
+%% Four bar linkage
+
+%         (?)
+%    O - - - - - O
+%    | ?     90* |
+%    |           |
+%(5) |           | (5)
+%    |           |
+%    | 90*   90* |
+%    O - - - - - O
+%         (5)
+%  Linkage 1 is of length 5 and is at 90 degrees.
+%  Linkage 2 is unknown.
+%  Linkage 3 is of length 5 and at 270 degrees.
+%  Linkage 4 is of length 5 and at 180 degrees.
+
+%%
+[link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+
+%%
+[link3, angle3]=fourbar(5,90,[],[],5,270,5,180)
+%%
+[link1, link2, link3, link4]=fourbar(-5,270,[],[],5,270,5,180)
+%%
+links=fourbar(-5,270,[],[],5,270,5,180)
+%%
+% Plotting example.
+link_solver(1,45,1,0,[],[],1,180)
+draw_bar(ans);
+
+%% Four bar linkage - Multiple input
+links=link_solver(1,[0 45 90],5,[],4,[],4,180,[45,270]);
+% Legend on
+draw_bar(links)
+% Legend off
+draw_bar(links,'off');
+
+%% Guessing vs No Guesses - four bar linkage
+% Supplying a guess for the unknown variables is not manditory, however it
+% is suggested as certain input configurations the solver will correctly
+% solve for the unknowns, although the linkage may not look as expected.
+
+%% 
+% No guesses
+link1=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link);
+link2=link_solver(1,-15,5,[],4,[],4,180),figure(2);draw_bar(link);
+
+%%
+% Guesses
+link1=link_solver(1,-10,5,[],4,[],4,180),figure(1);draw_bar(link)
+link2=link_solver(1,-15,5,[],4,[],4,180,[link.angle_2 link.angle_3]),figure(2);draw_bar(link)
+
+%%
+% Guesses for multiple linkage orientations
+l=link_solver(1,-15,5,[],4,[],4,180,[45,-90;-45,90]);draw_bar(l)
+
+
+%% Three bar linkages
+%%
+% Equilateral Triangle
+[link3, angle3]=link_solver(1,60,[],[],1,180);
+draw_bar(1,60,link3,angle3,1,180);
+
+%%
+% Isosceles Triangle
+[link1, link2, link3]=link_solver(1,rand(1,1)*60,1,[],[],180);
+draw_bar(link1(1),link1(2),link2(1),link2(2),link3(1),link3(2));
+
+%%
+% Scalene Triangle
+[links]=link_solver(5,0,3,45,[],[]);
+draw_bar(links);
+##### SOURCE END #####
+-->
+   </body>
+</html>
